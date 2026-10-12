@@ -45,3 +45,5 @@ label{font-size:12px;color:var(--mut)}.row{display:flex;gap:8px}.row>*{flex:1}
 .bn{font-size:14px;padding:3px 0}.bn b{color:var(--gold);margin-right:6px}.bn.d7 b{color:var(--bad)}
 .item.ev .dd{font-size:13px;color:var(--mut);white-space:nowrap}.item.ev.d30{border-left:3px solid var(--gold)}.item.ev.d30 .dd{color:var(--gold)}
 .item.ev.d7{border-left:3px solid var(--bad);background:#ef444418}.item.ev.d7 .dd{color:var(--bad)}
+.item.ivover{border-left:3px solid var(--bad)}
+#tseg .btn{padding:9px 4px}
