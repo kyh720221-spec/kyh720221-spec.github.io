@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#12111c"><title>레벨업 라이프</title>
+<link rel="manifest" href="manifest.json"><link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head><body>
+<header id="hero"></header>
+<main>
+<section id="tab-today" class="tab active"></section>
+<section id="tab-stats" class="tab"></section>
+<section id="tab-quests" class="tab"></section>
+<section id="tab-charts" class="tab"></section>
+<section id="tab-settings" class="tab"></section>
+</main>
+<nav id="nav">
+<button data-tab="today" class="on">⚔️<span>오늘</span></button>
+<button data-tab="stats">📊<span>능력치</span></button>
+<button data-tab="quests">🏆<span>퀘스트</span></button>
+<button data-tab="charts">📈<span>통계</span></button>
+<button data-tab="settings">⚙️<span>설정</span></button>
+</nav>
+<div id="toasts"></div><div id="modal" class="hidden"></div>
+<script src="config.js"></script>
+<script src="vendor/msal-browser.min.js"></script>
+<script src="sync.js"></script>
+<script src="app.js"></script>
+</body></html>
