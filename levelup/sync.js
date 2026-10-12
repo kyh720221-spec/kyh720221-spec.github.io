@@ -104,9 +104,9 @@ function tick(){if(signedIn&&navigator.onLine&&dueNow(st,st.lastSync,Date.now())
 
 // ---- UI ----
 const ICON={idle:'☁️',ok:'☁️',syncing:'<span class="spin">🔄</span>',offline:'📴',error:'⚠️',login:'🔑',none:'',ready:'⏳'};
-function renderIcon(){const el=$('#syncIcon');if(!el)return;const s=!configured()?'ready':!signedIn?'none':st.status;el.innerHTML=(ICON[s]||'')+(signedIn&&st.pending&&s==='ok'?'·':'');el.title=st.msg||'';el.onclick=()=>document.querySelector('[data-tab=settings]').click()}
+function renderIcon(){const el=$('#syncIcon');if(!el)return;if(!configured()){el.innerHTML='';return}const s=!signedIn?'none':st.status;el.innerHTML=(ICON[s]||'')+(signedIn&&st.pending&&s==='ok'?'·':'');el.title=st.msg||'';el.onclick=()=>document.querySelector('[data-tab=settings]').click()}
 function renderCard(){const c=$('#syncCard');if(!c)return;
- if(!configured()){c.innerHTML='<h2>☁️ 원드라이브 동기화</h2><div class="mut">연결 준비 중 · 지금은 이 기기에만 저장돼요 (config.js에 클라이언트 ID 필요)</div>';return}
+ if(!configured()){c.style.display='none';c.innerHTML='';return}c.style.display='';
  if(!signedIn){c.innerHTML='<h2>☁️ 원드라이브 동기화</h2><p class="mut">원드라이브 앱 폴더에 자동 백업·동기화해요. 기록은 오프라인에서도 계속 돼요.</p><button class="btn" id="sLogin">원드라이브 연결</button>';$('#sLogin').onclick=()=>auth.login();return}
  const opts=[['off','끄기'],['30','30분'],['60','1시간'],['180','3시간'],['daily','하루 1번']];
  c.innerHTML=`<h2>☁️ 원드라이브 동기화</h2><div class="mut">계정: ${st.email||'-'}<br>마지막 동기화: ${fmt(st.lastSync)}<br>상태: <span id="sMsg">${st.msg||'대기'}</span>${st.pending?' · 보낼 변경 있음':''}</div>
