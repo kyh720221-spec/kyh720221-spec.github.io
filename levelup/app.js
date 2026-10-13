@@ -1,11 +1,13 @@
 'use strict';
-const APP_VERSION='1.2.0';
+const APP_VERSION='1.2.1';
 const KEY='levelup-life-v1';
 const $=s=>document.querySelector(s);
 const uid=()=>Math.random().toString(36).slice(2,9);
 const pad=n=>String(n).padStart(2,'0');
 const dkey=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
-const today=()=>dkey(new Date());
+const DAY_START_HOUR=5;// 하루 시작(초기화) 시각: 오전 5시. 00:00~04:59는 전날로 취급
+const dayNow=(t=Date.now())=>new Date(t-DAY_START_HOUR*36e5);
+const today=()=>dkey(dayNow());
 const addDays=(k,n)=>{const d=new Date(k+'T12:00:00');d.setDate(d.getDate()+n);return dkey(d)};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -20,14 +22,14 @@ function defaults(){
 let S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 if(!S||!S.stats)S=defaults();
 if(!S.meta)S.meta={lastModified:0};
-function migrate(o){if(!o.prog)o.prog={};if(!Array.isArray(o.events))o.events=[];for(const i of o.items||[]){if(!i.type)i.type='habit';if(i.type==='interval'){i.every=Math.max(1,+i.every||1);if(!i.due)i.due=dkey(new Date())}if((i.type==='weekly'||i.type==='monthly')&&!(i.target>=1))i.target=1}return o}
+function migrate(o){if(!o.prog)o.prog={};if(!Array.isArray(o.events))o.events=[];for(const i of o.items||[]){if(!i.type)i.type='habit';if(i.type==='interval'){i.every=Math.max(1,+i.every||1);if(!i.due)i.due=today()}if((i.type==='weekly'||i.type==='monthly')&&!(i.target>=1))i.target=1}return o}
 migrate(S);
 const body=o=>{const c=Object.assign({},o);delete c.meta;return JSON.stringify(c)};
 let lastBody=body(S);
 // 데이터가 실제로 바뀐 경우에만 lastModified 갱신
 function save(){const b=body(S);if(b!==lastBody){S.meta.lastModified=Date.now();lastBody=b;window.LUSync&&LUSync.markDirty()}localStorage.setItem(KEY,JSON.stringify(S))}
 function replaceState(n){S=migrate(n);if(!S.meta)S.meta={lastModified:0};
-function migrate(o){if(!o.prog)o.prog={};if(!Array.isArray(o.events))o.events=[];for(const i of o.items||[]){if(!i.type)i.type='habit';if(i.type==='interval'){i.every=Math.max(1,+i.every||1);if(!i.due)i.due=dkey(new Date())}if((i.type==='weekly'||i.type==='monthly')&&!(i.target>=1))i.target=1}return o}
+function migrate(o){if(!o.prog)o.prog={};if(!Array.isArray(o.events))o.events=[];for(const i of o.items||[]){if(!i.type)i.type='habit';if(i.type==='interval'){i.every=Math.max(1,+i.every||1);if(!i.due)i.due=today()}if((i.type==='weekly'||i.type==='monthly')&&!(i.target>=1))i.target=1}return o}
 migrate(S);lastBody=body(S);localStorage.setItem(KEY,JSON.stringify(S));render()}
 
 // 레벨 곡선: 초반 빠르게, 후반 점점 느리게
