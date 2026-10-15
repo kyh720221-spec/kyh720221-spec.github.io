@@ -1,4 +1,4 @@
-const C='levelup-v6';const F=['./','index.html','style.css','app.js','sync.js','config.js','vendor/msal-browser.min.js','manifest.json','icons/icon-192.png','icons/icon-512.png'];
+const C='levelup-v7';const F=['./','index.html','style.css','app.js','sync.js','config.js','vendor/msal-browser.min.js','manifest.json','icons/icon-192.png','icons/icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(F.map(u=>new Request(u,{cache:'reload'})))));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))));self.clients.claim()});
 self.addEventListener('fetch',e=>{
