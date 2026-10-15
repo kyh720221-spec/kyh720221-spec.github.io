@@ -71,7 +71,7 @@ label{font-size:12px;color:var(--mut)}.row{display:flex;gap:8px}.row>*{flex:1}
 </nav>
 <div id="toasts"></div><div id="modal" class="hidden"></div>
 <script>'use strict';
-const APP_VERSION='1.2.1';
+const APP_VERSION='1.2.2';
 const KEY='levelup-life-v1';
 const $=s=>document.querySelector(s);
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -80,6 +80,7 @@ const dkey=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 const DAY_START_HOUR=5;// 하루 시작(초기화) 시각: 오전 5시. 00:00~04:59는 전날로 취급
 const dayNow=(t=Date.now())=>new Date(t-DAY_START_HOUR*36e5);
 const today=()=>dkey(dayNow());
+const fmtDay=k=>{const d=new Date(k+'T12:00:00');return (d.getMonth()+1)+'월 '+d.getDate()+'일('+'일월화수목금토'[d.getDay()]+')'};
 const addDays=(k,n)=>{const d=new Date(k+'T12:00:00');d.setDate(d.getDate()+n);return dkey(d)};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -210,30 +211,32 @@ function ivRow(i){const s=statOf(i.stat),k=today(),d=i.lastDone===k,n=dday(i.due
  const st=d?'오늘 완료 ✓ · ':n<0?`<b style="color:var(--bad)">${-n}일 지남</b> · `:n===0?'<b style="color:var(--gold)">오늘!</b> · ':'';
  return `<div class="item ${d?'done':''} ${!d&&n<0?'ivover':''}" data-id="${i.id}"><button class="chk" data-act="chk">${d?'✓':''}</button><div class="t"><div>${esc(i.title)}</div><div><span class="tag">🔁 ${i.every}일마다</span><span class="tag">${s.icon} ${esc(s.name)}</span><span class="mut">+${i.xp}XP</span></div><div class="mut">${st}다음: ${dt.getMonth()+1}월 ${dt.getDate()}일 (${ddl(n)})</div></div><button class="x" data-act="edit">✎</button></div>`}
 function itemRow(i){if(i.type==='interval')return ivRow(i);if(isPer(i))return perRow(i);const d=i.type==='habit'?isChecked(i.id):!!i.done;const s=statOf(i.stat);const sk=i.type==='habit'?streak(i.id):0;
- return `<div class="item ${d?'done':''}" data-id="${i.id}"><button class="chk" data-act="chk">${d?'✓':''}</button><div class="t"><div>${esc(i.title)}</div><div><span class="tag">${s.icon} ${esc(s.name)}</span><span class="mut">+${i.xp}XP</span> ${sk?`<span class="streak">🔥${sk}</span>`:''}</div></div><button class="x" data-act="edit">✎</button></div>`}
+ return `<div class="item ${d?'done':''}" data-id="${i.id}"><button class="chk" data-act="chk">${d?'✓':''}</button><div class="t"><div>${esc(i.title)}</div><div><span class="tag">${s.icon} ${esc(s.name)}</span><span class="mut">+${i.xp}XP</span> ${sk?`<span class="streak">🔥${sk}</span>`:''}${i.type==='habit'?` <span class="mut">📅 ${fmtDay(today())}</span>`:''}</div></div><button class="x" data-act="edit">✎</button></div>`}
 function renderToday(){const k=today(),L=S.log[k]||{memo:''};
  const hab=S.items.filter(i=>i.type==='habit'),todo=S.items.filter(i=>i.type==='todo'&&(!i.done||i.done===k));
  const dn=hab.filter(i=>isChecked(i.id)).length;
  const wk=S.items.filter(i=>i.type==='weekly'),mo=S.items.filter(i=>i.type==='monthly');
  const ivAll=S.items.filter(i=>i.type==='interval').sort((a,b)=>a.due.localeCompare(b.due)),ivD=ivAll.filter(ivDue);
- const sec={habit:['🗓 매일 습관',hab,`${dn}/${hab.length}`,''],weekly:['📅 이번 주 체크리스트',wk,`${wk.filter(i=>perDone(i)).length}/${wk.length}`,perInfo('weekly')],monthly:['🗓️ 이번 달 체크리스트',mo,`${mo.filter(i=>perDone(i)).length}/${mo.length}`,perInfo('monthly')],interval:['🔁 N일마다 반복',ivAll,`${ivD.filter(i=>i.lastDone!==today()).length}`,{label:'정한 날짜마다 다시 나타나요',left:null}]};
+ const sec={habit:['🗓 매일 습관',hab,`${dn}/${hab.length}`,{label:`📅 ${fmtDay(k)} 기록 · 내일 오전 5시에 새 하루`,left:null}],weekly:['📅 이번 주 체크리스트',wk,`${wk.filter(i=>perDone(i)).length}/${wk.length}`,perInfo('weekly')],monthly:['🗓️ 이번 달 체크리스트',mo,`${mo.filter(i=>perDone(i)).length}/${mo.length}`,perInfo('monthly')],interval:['🔁 N일마다 반복',ivAll,`${ivD.filter(i=>i.lastDone!==today()).length}`,{label:'정한 날짜마다 다시 나타나요',left:null}]};
  sec.habit[1]=[...hab,...ivD];
  const [ttl,list,cn,inf]=sec[todayMode];
  const up=upcoming(),ban=up.slice(0,2);
  const evs=[...up,...S.events.filter(e=>e.done).sort((a,b)=>b.done.localeCompare(a.done)).slice(0,5)];
- $('#tab-today').innerHTML=`${ban.length?`<div class="banner" id="evBanner">${ban.map(e=>{const n=dday(e.date);return `<div class="bn ${ddc(n)}"><b>${ddl(n)}</b> ${esc(e.title)} <span class="mut">${e.date.slice(5).replace('-','/')}</span></div>`}).join('')}</div>`:''}<div class="seg" id="tseg">${[['habit','매일'],['weekly','주간'],['monthly','월간'],['interval','반복']].map(([m,n])=>`<button class="btn ${todayMode===m?'':'sec'}" data-tm="${m}">${n} <small style="opacity:.7">${sec[m][2]}</small></button>`).join('')}</div>
+ $('#tab-today').innerHTML=`<div class="card" style="padding:10px 14px"><b>📅 ${fmtDay(k)}</b> <span class="mut">오늘 기록 (오전 5시 기준)</span></div>${ban.length?`<div class="banner" id="evBanner">${ban.map(e=>{const n=dday(e.date);return `<div class="bn ${ddc(n)}"><b>${ddl(n)}</b> ${esc(e.title)} <span class="mut">${e.date.slice(5).replace('-','/')}</span></div>`}).join('')}</div>`:''}<div class="seg" id="tseg">${[['habit','매일'],['weekly','주간'],['monthly','월간'],['interval','반복']].map(([m,n])=>`<button class="btn ${todayMode===m?'':'sec'}" data-tm="${m}">${n} <small style="opacity:.7">${sec[m][2]}</small></button>`).join('')}</div>
  <div class="card"><h2>${ttl} <span class="mut">${cn}</span></h2>${inf?`<div class="mut" style="margin:-6px 0 8px">${inf.left===null?inf.label:`${inf.label} · ${inf.left}일 남음 · 새 ${todayMode==='weekly'?'주(월요일)':'달'}에 자동 초기화`}</div>`:''}${list.map(itemRow).join('')||'<div class="empty">항목을 추가해 보세요</div>'}</div>
  <div class="card"><h2>📜 할 일</h2>${todo.map(itemRow).join('')||'<div class="empty">할 일이 없어요</div>'}</div>
  <div class="card" id="evCard"><h2>📌 중요한 먼 일정 <button class="btn sm" id="addEv">＋ 추가</button></h2>${evs.map(evRow).join('')||'<div class="empty">한 달 이상 남은 중요한 일을 적어 두세요</div>'}</div>
  <button class="btn" style="width:100%;margin-bottom:12px" id="addItem">＋ 습관 / 할 일 추가</button>
- <div class="memo"><span class="mut">✏️</span><input id="memo" maxlength="80" placeholder="오늘 한 줄 (선택)" value="${esc(L.memo||'')}"></div>`;
+ <div class="memo"><span class="mut">✏️</span><input id="memo" maxlength="80" placeholder="${fmtDay(k)} 한 줄 (선택)" value="${esc(L.memo||'')}"></div>`;
  $('#addItem').onclick=()=>editItem(null,todayMode);$('#addEv').onclick=()=>editEv();if($('#evBanner'))$('#evBanner').onclick=()=>$('#evCard').scrollIntoView({behavior:'smooth'});
  document.querySelectorAll('[data-tm]').forEach(b=>b.onclick=()=>{todayMode=b.dataset.tm;renderToday()});
  $('#memo').onchange=e=>{const before=totals();dayLog(k).memo=e.target.value.trim();evaluate(before);toast('메모 저장됨')};
 }
+function histHTML(){const ks=Object.keys(S.log).filter(k=>/^\d{4}-\d\d-\d\d$/.test(k)&&(S.log[k].checks?.length||S.log[k].memo)).sort().reverse().slice(0,30);if(!ks.length)return '<div class="empty">아직 기록이 없어요</div>';return ks.map(k=>{const L=S.log[k],x=dayXP(k),t=(L.checks||[]).map(c=>esc((S.items.find(i=>i.id===c.id)||{}).title||'')).filter(Boolean);return `<div class="item"><div class="t"><div><b>${fmtDay(k)}</b>${k===today()?' <span class="tag">오늘</span>':''} <span class="mut">✓${x.n} · +${x.x}XP</span></div>${t.length?`<div class="mut">${t.join(', ')}</div>`:''}${L.memo?`<div class="mut">✏️ ${esc(L.memo)}</div>`:''}</div></div>`}).join('')}
 function renderStats(){const t=totals();
  $('#tab-stats').innerHTML=`<div class="card"><h2>🧬 능력치 <button class="btn sm sec" id="addStat">＋ 추가</button></h2>${S.stats.map(s=>{const L=statLvl(t.st[s.id]||0);return `<div class="stat"><div class="ic">${s.icon}</div><div class="s"><b>${esc(s.name)}</b> <span class="mut">Lv.${L.l} · ${t.st[s.id]||0}XP</span><div class="bar"><i style="width:${L.cur/L.need*100}%"></i></div></div><button class="x" data-stat="${s.id}">✎</button></div>`}).join('')}</div>
- <div class="card"><h2>📋 기록</h2><div class="mut">총 체크 ${t.checks}회 · 최고 연속 ${bestStreak()}일 · 업적 ${Object.keys(S.ach).length}/${ACH.length}</div></div>`;
+ <div class="card"><h2>📋 기록</h2><div class="mut">총 체크 ${t.checks}회 · 최고 연속 ${bestStreak()}일 · 업적 ${Object.keys(S.ach).length}/${ACH.length}</div></div>
+ <div class="card"><h2>🗂 날짜별 기록</h2>${histHTML()}</div>`;
  $('#addStat').onclick=()=>editStat();
  document.querySelectorAll('[data-stat]').forEach(b=>b.onclick=()=>editStat(b.dataset.stat));
 }
@@ -287,7 +290,7 @@ function editItem(id,mode){const DX={habit:10,weekly:40,monthly:100,todo:15,inte
   Object.assign(it,{title:t,type:ty,stat:$('#fS').value,xp:+$('#fX').value});if(isPer(it))it.target=Math.max(1,Math.min(99,+$('#fN').value||1));if(ty==='interval'){it.every=Math.max(1,Math.min(3650,+$('#fE').value||1));it.due=$('#fSd').value||today()}
   if(!id){it.id=uid();if(it.type==='todo')it.done=null;S.items.push(it)}else if(oldT!==ty&&it.type==='todo')it.done=null;todayMode=it.type==='todo'?todayMode:it.type;save();render()});
  const setTy=(v,user)=>{$('#fYs').dataset.v=v;document.querySelectorAll('[data-ty]').forEach(b=>b.classList.toggle('sec',b.dataset.ty!==v));$('#fNw').style.display=(v==='weekly'||v==='monthly')?'':'none';$('#fIw').style.display=v==='interval'?'':'none';
-  $('#fHint').textContent={habit:'매일 0시에 초기화돼요',weekly:'매주 월요일에 초기화 · 목표 2회 이상이면 +1 카운터',monthly:'매달 1일에 초기화 · 목표 2회 이상이면 +1 카운터',todo:'한 번 완료하면 끝나요',interval:'시작 날짜부터 N일마다 나타나요 · 체크하면 다음 날짜로 넘어가요'}[v];
+  $('#fHint').textContent={habit:'매일 오전 5시에 초기화돼요',weekly:'매주 월요일에 초기화 · 목표 2회 이상이면 +1 카운터',monthly:'매달 1일에 초기화 · 목표 2회 이상이면 +1 카운터',todo:'한 번 완료하면 끝나요',interval:'시작 날짜부터 N일마다 나타나요 · 체크하면 다음 날짜로 넘어가요'}[v];
   if(user&&!id)$('#fX').value=String(DX[v])};
  setTy(it.type);document.querySelectorAll('[data-ty]').forEach(b=>b.onclick=()=>setTy(b.dataset.ty,true));
  if(id)$('#fD').onclick=()=>{if(confirm('삭제할까요? (이미 얻은 XP는 유지)')){S.items=S.items.filter(i=>i.id!==id);save();render();$('#modal').classList.add('hidden')}};
