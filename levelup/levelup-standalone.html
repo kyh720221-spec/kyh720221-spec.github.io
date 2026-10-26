@@ -71,7 +71,7 @@ label{font-size:12px;color:var(--mut)}.row{display:flex;gap:8px}.row>*{flex:1}
 </nav>
 <div id="toasts"></div><div id="modal" class="hidden"></div>
 <script>'use strict';
-const APP_VERSION='1.2.4';
+const APP_VERSION='1.2.5';
 const KEY='levelup-life-v1';
 const $=s=>document.querySelector(s);
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -129,6 +129,25 @@ function perStreak(i){let pk=pkOf(i);if(!perDone(i,pk))pk=prevPk(i,pk);let n=0;w
 function bestPer(t){return Math.max(0,...S.items.filter(i=>i.type===t).map(perStreak))}
 function perInfo(t){const k=today(),d=new Date(k+'T12:00:00');if(t==='weekly'){const mon=addDays(k,-((d.getDay()+6)%7)),sun=addDays(mon,6);const f=x=>(+x.slice(5,7))+'/'+(+x.slice(8));return {label:f(mon)+'~'+f(sun),left:(new Date(sun+'T12:00:00')-d)/864e5+1}}
  const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return {label:(d.getMonth()+1)+'월',left:last-d.getDate()+1}}
+// ── 연속 마일스톤 (v1.2.5) ──
+const MS_BIG={21:[70,'🥉','21일'],49:[120,'🥈','49일'],70:[150,'🥇','70일'],100:[250,'💎','100일'],200:[400,'🏆','200일'],365:[700,'👑','1년']};
+const isMs=m=>m>0&&(m%7===0||!!MS_BIG[m]);
+const msXP=m=>MS_BIG[m]?MS_BIG[m][0]:30;
+function nextMs(n){let m=n+1;while(!isMs(m))m++;return m}
+function lastChk(id){const k=today();return isChecked(id,k)?k:addDays(k,-1)}
+function runStart(id){const n=streak(id);return n?addDays(lastChk(id),-(n-1)):null}
+function msInit(){if(S.msSkip)return;S.msSkip={};for(const i of S.items)if(i.type==='habit'){const n=streak(i.id);if(n)S.msSkip[i.id]={run:runStart(i.id),upto:n}}}
+function bestRun(id){const ks=Object.keys(S.log).filter(k=>isChecked(id,k)).sort();let b=0,c=0,p=null;for(const k of ks){c=(p&&addDays(p,1)===k)?c+1:1;if(c>b)b=c;p=k}return b}
+function checkMilestones(){msInit();const T=today();
+ // 오늘 체크 해제로 연속이 줄면 오늘 받은 보너스 회수
+ S.rewards=S.rewards.filter(r=>{if(r.src!=='streak'||r.date!==T)return true;const ok=runStart(r.id)===r.run&&streak(r.id)>=r.m;if(!ok)toast('↩️ 연속 보너스 회수 (-'+r.xp+'XP)');return ok});
+ for(const i of S.items){if(i.type!=='habit')continue;const n=streak(i.id);if(!n)continue;const run=runStart(i.id),sk=S.msSkip[i.id],floor=(sk&&sk.run===run)?sk.upto:0;
+  for(let m=floor+1;m<=n;m++){if(!isMs(m))continue;if(S.rewards.some(r=>r.src==='streak'&&r.id===i.id&&r.run===run&&r.m===m))continue;
+   const xp=msXP(m),b=MS_BIG[m];S.rewards.push({date:T,xp,stat:i.stat||null,src:'streak',id:i.id,run,m,badge:b?b[1]:null});
+   toast((b?b[1]+' ':'🔥 ')+i.title+' '+m+'일 연속! 보너스 +'+xp+'XP')}}}
+function streakHTML(){const H=S.items.filter(i=>i.type==='habit');if(!H.length)return '<div class="empty">매일 습관이 없어요</div>';
+ return H.map(i=>{const R=S.rewards.filter(r=>r.src==='streak'&&r.id===i.id),bd=R.filter(r=>r.badge).map(r=>`<span title="${r.m}일">${r.badge}${r.m}</span>`).join(' '),bx=R.reduce((a,r)=>a+r.xp,0),n=streak(i.id),nm=nextMs(n);
+  return `<div class="item"><div class="t"><div><b>${esc(i.title)}</b> <span class="streak">🔥${n}</span></div><div class="mut">최고 ${bestRun(i.id)}일 · 다음 보너스 ${nm}일(+${msXP(nm)}XP) · 받은 보너스 ${R.length}회 +${bx}XP</div>${bd?`<div>${bd}</div>`:''}</div></div>`}).join('')}
 function bestStreak(){return Math.max(0,...S.items.filter(i=>i.type==='habit').map(i=>streak(i.id)))}
 function anyStreakDays(){let k=today();if(!(S.log[k]?.checks.length))k=addDays(k,-1);let n=0;while(S.log[k]?.checks.length){n++;k=addDays(k,-1)}return n}
 
@@ -157,6 +176,7 @@ function toast(msg,cls=''){const t=document.createElement('div');t.className='to
 function floatXP(el,txt){const r=el.getBoundingClientRect();const f=document.createElement('div');f.className='xpf';f.textContent=txt;f.style.left=r.left+'px';f.style.top=r.top+'px';document.body.appendChild(f);setTimeout(()=>f.remove(),1000)}
 
 function evaluate(before){
+  checkMilestones();
   // 퀘스트 보상
   for(const q of S.quests){const pk=periodKey(q.period);if(!q.claimed[pk]&&questProg(q)>=q.target){q.claimed[pk]=today();S.rewards.push({date:today(),xp:q.reward,stat:q.stat||null,src:'quest',id:q.id});toast('🏅 퀘스트 완료! '+q.title+' +'+q.reward+'XP')}}
   for(const [id,e,name,fn] of ACH){if(!S.ach[id]&&fn()){S.ach[id]=today();S.rewards.push({date:today(),xp:20,stat:null,src:'ach',id});toast(e+' 업적 달성: '+name+' (+20XP)')}}
@@ -211,7 +231,7 @@ function ivRow(i){const s=statOf(i.stat),k=today(),d=i.lastDone===k,n=dday(i.due
  const st=d?'오늘 완료 ✓ · ':n<0?`<b style="color:var(--bad)">${-n}일 지남</b> · `:n===0?'<b style="color:var(--gold)">오늘!</b> · ':'';
  return `<div class="item ${d?'done':''} ${!d&&n<0?'ivover':''}" data-id="${i.id}"><button class="chk" data-act="chk">${d?'✓':''}</button><div class="t"><div>${esc(i.title)}</div><div><span class="tag">🔁 ${i.every}일마다</span><span class="tag">${s.icon} ${esc(s.name)}</span><span class="mut">+${i.xp}XP</span></div><div class="mut">${st}다음: ${dt.getMonth()+1}월 ${dt.getDate()}일 (${ddl(n)})</div></div><button class="x" data-act="edit">✎</button></div>`}
 function itemRow(i){if(i.type==='interval')return ivRow(i);if(isPer(i))return perRow(i);const d=i.type==='habit'?isChecked(i.id):!!i.done;const s=statOf(i.stat);const sk=i.type==='habit'?streak(i.id):0;
- return `<div class="item ${d?'done':''}" data-id="${i.id}"><button class="chk" data-act="chk">${d?'✓':''}</button><div class="t"><div>${esc(i.title)}</div><div><span class="tag">${s.icon} ${esc(s.name)}</span><span class="mut">+${i.xp}XP</span> ${sk?`<span class="streak">🔥${sk}</span>`:''}${i.type==='habit'?` <span class="mut">📅 ${fmtDay(today())}</span>`:''}</div></div><button class="x" data-act="edit">✎</button></div>`}
+ return `<div class="item ${d?'done':''}" data-id="${i.id}"><button class="chk" data-act="chk">${d?'✓':''}</button><div class="t"><div>${esc(i.title)}</div><div><span class="tag">${s.icon} ${esc(s.name)}</span><span class="mut">+${i.xp}XP</span> ${sk?`<span class="streak">🔥${sk}</span>`:''}${i.type==='habit'?` <span class="mut" style="font-size:.85em">다음 보너스까지 ${nextMs(sk)-sk}일</span>`:''}${i.type==='habit'?` <span class="mut">📅 ${fmtDay(today())}</span>`:''}</div></div><button class="x" data-act="edit">✎</button></div>`}
 function renderTodayQ(k){$('#qCard').onclick=()=>{qOff++;$('#qCard').outerHTML=quoteHTML(k);renderTodayQ(k)}}
 function renderToday(){const k=today(),L=S.log[k]||{memo:''};
  const hab=S.items.filter(i=>i.type==='habit'),todo=S.items.filter(i=>i.type==='todo'&&(!i.done||i.done===k));
@@ -242,6 +262,7 @@ function histHTML(){const ks=Object.keys(S.log).filter(k=>/^\d{4}-\d\d-\d\d$/.te
 function renderStats(){const t=totals();
  $('#tab-stats').innerHTML=`<div class="card"><h2>🧬 능력치 <button class="btn sm sec" id="addStat">＋ 추가</button></h2>${S.stats.map(s=>{const L=statLvl(t.st[s.id]||0);return `<div class="stat"><div class="ic">${s.icon}</div><div class="s"><b>${esc(s.name)}</b> <span class="mut">Lv.${L.l} · ${t.st[s.id]||0}XP</span><div class="bar"><i style="width:${L.cur/L.need*100}%"></i></div></div><button class="x" data-stat="${s.id}">✎</button></div>`}).join('')}</div>
  <div class="card"><h2>📋 기록</h2><div class="mut">총 체크 ${t.checks}회 · 최고 연속 ${bestStreak()}일 · 업적 ${Object.keys(S.ach).length}/${ACH.length}</div></div>
+ <div class="card"><h2>🔥 습관 연속 · 배지</h2>${streakHTML()}</div>
  <div class="card"><h2>🗂 날짜별 기록</h2>${histHTML()}</div>`;
  $('#addStat').onclick=()=>editStat();
  document.querySelectorAll('[data-stat]').forEach(b=>b.onclick=()=>editStat(b.dataset.stat));
@@ -323,7 +344,7 @@ function editQuest(){
 }
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;if(b.dataset.act==='evchk')return toggleEv(b.closest('.item').dataset.ev,b);if(b.dataset.act==='evedit')return editEv(b.closest('.item').dataset.ev);const id=b.closest('.item').dataset.id;if(b.dataset.act==='chk')toggle(id,b);else if(b.dataset.act==='inc')bump(id,1,b);else if(b.dataset.act==='dec')bump(id,-1,b);else editItem(id)});
 document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('on',x===b));document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.id==='tab-'+b.dataset.tab));if(b.dataset.tab==='charts')renderCharts();scrollTo(0,0)});
-function render(){document.body.classList.toggle('light',S.theme==='light');renderHero();renderToday();renderStats();renderQuests();if($('#tab-charts').classList.contains('active'))renderCharts();renderSettings()}
+function render(){msInit();document.body.classList.toggle('light',S.theme==='light');renderHero();renderToday();renderStats();renderQuests();if($('#tab-charts').classList.contains('active'))renderCharts();renderSettings()}
 render();save();
 window.LUSync&&LUSync.start();
 if('serviceWorker'in navigator&&location.protocol.startsWith('http')){
