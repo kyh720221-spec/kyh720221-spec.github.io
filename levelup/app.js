@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='1.2.5';
+const APP_VERSION='1.2.6';
 const KEY='levelup-life-v1';
 const $=s=>document.querySelector(s);
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -134,8 +134,20 @@ function toggle(id,el){
 }
 const statOf=id=>S.stats.find(s=>s.id===id)||{name:'?',icon:'❔'};
 
+// ── 오늘 XP 진행 / 레벨 표시 (v1.2.6) ──
+function todayXP(){const k=today(),chk=S.log[k]?.checks||[];let max=0,base=0;
+ for(const i of S.items){let ok=false;
+  if(i.type==='habit')ok=true;else if(i.type==='interval')ok=i.due<=k||i.lastDone===k;else if(i.type==='todo')ok=!i.done||i.done===k;
+  else if(isPer(i)){const pk=pkOf(i,k);ok=!perDone(i,pk)||chk.some(c=>c.id===i.id&&c.per===pk)}
+  if(ok){max+=+i.xp||0;const c=chk.find(c=>c.id===i.id);if(c)base+=Math.min(+c.xp||0,+i.xp||0)}}
+ const bonus=S.rewards.filter(r=>r.src==='streak'&&r.date===k).reduce((a,r)=>a+r.xp,0);
+ return {base,max,bonus,pct:max?Math.min(100,Math.round(base/max*100)):0}}
+function avg7(){const k=today();let x=0;for(let d=1;d<=7;d++)x+=dayXP(addDays(k,-d)).x;return x/7}
+function etaDays(L){const a=avg7();return a>0?Math.ceil((L.need-L.cur)/a):null}
+function todayXPHTML(){const t=todayXP();return `<div class="card" id="txp" style="padding:10px 14px"><div><b>⚡ 오늘 ${t.base} / ${t.max} XP</b> <span class="mut">(${t.pct}%)</span>${t.bonus?` <span class="streak">+보너스 ${t.bonus}</span>`:''}</div><div class="bar" style="margin-top:6px"><i style="width:${t.pct}%"></i></div></div>`}
+function levelTableHTML(){const L=lvl(totals().total).l,a=Math.max(1,L-2);let h='';for(let l=a;l<=L+3;l++){const p=l>1?Math.round(need(l)/need(l-1)*100):null;h+=`<div class="item" style="${l===L?'font-weight:800':''}"><div class="t"><div>Lv${l} → ${l+1} ${l===L?'<span class="tag">현재</span>':''}</div><div class="mut">${need(l)} XP${p?` · 이전 대비 ${p}%`:''}</div></div></div>`}return h}
 function renderHero(){const t=totals(),L=lvl(t.total);
- $('#hero').innerHTML=`<div class="hrow"><div class="lvbadge"><small>LV</small><b>${L.l}</b></div><div style="flex:1"><div style="font-weight:800">용현의 모험 <span class="mut" style="color:#ddd">· 총 ${t.total} XP</span></div><div class="bar"><i style="width:${L.cur/L.need*100}%"></i></div><div class="mut" style="color:#ccc">다음 레벨까지 ${L.need-L.cur} XP · 🔥 ${anyStreakDays()}일 연속</div></div><span id="syncIcon"></span></div>`;window.LUSync&&LUSync.renderIcon()}
+ $('#hero').innerHTML=`<div class="hrow"><div class="lvbadge"><small>LV</small><b>${L.l}</b></div><div style="flex:1"><div style="font-weight:800">용현의 모험 <span class="mut" style="color:#ddd">· 총 ${t.total} XP</span></div><div class="bar"><i style="width:${L.cur/L.need*100}%"></i></div><div class="mut" style="color:#ccc">${L.cur} / ${L.need} XP (${Math.round(L.cur/L.need*100)}%) · 남은 ${L.need-L.cur} XP${etaDays(L)?` · 지금 페이스면 약 ${etaDays(L)}일`:''} · 🔥 ${anyStreakDays()}일 연속</div></div><span id="syncIcon"></span></div>`;window.LUSync&&LUSync.renderIcon()}
 function perRow(i){const s=statOf(i.stat),c=cnt(i),t=i.target||1,d=c>=t,sk=perStreak(i);const u=i.type==='weekly'?'주':'개월';
  const ctl=t>1?`<button class="chk" data-act="dec" style="width:28px;border-color:var(--mut)">−</button><b style="min-width:34px;text-align:center">${c}/${t}</b><button class="chk" data-act="inc" ${d?'disabled':''}>${d?'✓':'+1'}</button>`:`<button class="chk" data-act="chk">${d?'✓':''}</button>`;
  return `<div class="item ${d?'done':''}" data-id="${i.id}">${t>1?'':ctl}<div class="t"><div>${esc(i.title)}</div><div><span class="tag">${s.icon} ${esc(s.name)}</span><span class="mut">+${i.xp}XP</span> ${sk?`<span class="streak">🔥${sk}${u} 연속</span>`:''}</div>${t>1?`<div class="bar" style="height:5px"><i style="width:${c/t*100}%"></i></div>`:''}</div>${t>1?ctl:''}<button class="x" data-act="edit">✎</button></div>`}
@@ -171,7 +183,7 @@ function renderToday(){const k=today(),L=S.log[k]||{memo:''};
  const [ttl,list,cn,inf]=sec[todayMode];
  const up=upcoming(),ban=up.slice(0,2);
  const evs=[...up,...S.events.filter(e=>e.done).sort((a,b)=>b.done.localeCompare(a.done)).slice(0,5)];
- $('#tab-today').innerHTML=`<div class="card" style="padding:10px 14px"><b>📅 ${fmtDay(k)}</b> <span class="mut">오늘 기록 (오전 5시 기준)</span></div>${quoteHTML(k)}${Date.now()-lastBk()>7*864e5?`<div class="card" id="bkBan" style="padding:8px 14px;cursor:pointer;border:1px dashed var(--bad)">☁️ <b>${lastBk()?Math.floor((Date.now()-lastBk())/864e5)+'일째':'아직 한 번도'}</b> 백업을 안 했어요 · <u>설정에서 원드라이브로 백업</u></div>`:''}${ban.length?`<div class="banner" id="evBanner">${ban.map(e=>{const n=dday(e.date);return `<div class="bn ${ddc(n)}"><b>${ddl(n)}</b> ${esc(e.title)} <span class="mut">${e.date.slice(5).replace('-','/')}</span></div>`}).join('')}</div>`:''}<div class="seg" id="tseg">${[['habit','매일'],['weekly','주간'],['monthly','월간'],['interval','반복']].map(([m,n])=>`<button class="btn ${todayMode===m?'':'sec'}" data-tm="${m}">${n} <small style="opacity:.7">${sec[m][2]}</small></button>`).join('')}</div>
+ $('#tab-today').innerHTML=`<div class="card" style="padding:10px 14px"><b>📅 ${fmtDay(k)}</b> <span class="mut">오늘 기록 (오전 5시 기준)</span></div>${todayXPHTML()}${quoteHTML(k)}${Date.now()-lastBk()>7*864e5?`<div class="card" id="bkBan" style="padding:8px 14px;cursor:pointer;border:1px dashed var(--bad)">☁️ <b>${lastBk()?Math.floor((Date.now()-lastBk())/864e5)+'일째':'아직 한 번도'}</b> 백업을 안 했어요 · <u>설정에서 원드라이브로 백업</u></div>`:''}${ban.length?`<div class="banner" id="evBanner">${ban.map(e=>{const n=dday(e.date);return `<div class="bn ${ddc(n)}"><b>${ddl(n)}</b> ${esc(e.title)} <span class="mut">${e.date.slice(5).replace('-','/')}</span></div>`}).join('')}</div>`:''}<div class="seg" id="tseg">${[['habit','매일'],['weekly','주간'],['monthly','월간'],['interval','반복']].map(([m,n])=>`<button class="btn ${todayMode===m?'':'sec'}" data-tm="${m}">${n} <small style="opacity:.7">${sec[m][2]}</small></button>`).join('')}</div>
  <div class="card"><h2>${ttl} <span class="mut">${cn}</span></h2>${inf?`<div class="mut" style="margin:-6px 0 8px">${inf.left===null?inf.label:`${inf.label} · ${inf.left}일 남음 · 새 ${todayMode==='weekly'?'주(월요일)':'달'}에 자동 초기화`}</div>`:''}${list.map(itemRow).join('')||'<div class="empty">항목을 추가해 보세요</div>'}</div>
  <div class="card"><h2>📜 할 일</h2>${todo.map(itemRow).join('')||'<div class="empty">할 일이 없어요</div>'}</div>
  <div class="card" id="evCard"><h2>📌 중요한 먼 일정 <button class="btn sm" id="addEv">＋ 추가</button></h2>${evs.map(evRow).join('')||'<div class="empty">한 달 이상 남은 중요한 일을 적어 두세요</div>'}</div>
@@ -190,6 +202,7 @@ function histHTML(){const ks=Object.keys(S.log).filter(k=>/^\d{4}-\d\d-\d\d$/.te
 function renderStats(){const t=totals();
  $('#tab-stats').innerHTML=`<div class="card"><h2>🧬 능력치 <button class="btn sm sec" id="addStat">＋ 추가</button></h2>${S.stats.map(s=>{const L=statLvl(t.st[s.id]||0);return `<div class="stat"><div class="ic">${s.icon}</div><div class="s"><b>${esc(s.name)}</b> <span class="mut">Lv.${L.l} · ${t.st[s.id]||0}XP</span><div class="bar"><i style="width:${L.cur/L.need*100}%"></i></div></div><button class="x" data-stat="${s.id}">✎</button></div>`}).join('')}</div>
  <div class="card"><h2>📋 기록</h2><div class="mut">총 체크 ${t.checks}회 · 최고 연속 ${bestStreak()}일 · 업적 ${Object.keys(S.ach).length}/${ACH.length}</div></div>
+ <div class="card"><h2>📈 레벨표</h2><div class="mut" style="margin-bottom:6px">각 레벨에서 다음 레벨까지 필요한 XP</div>${levelTableHTML()}</div>
  <div class="card"><h2>🔥 습관 연속 · 배지</h2>${streakHTML()}</div>
  <div class="card"><h2>🗂 날짜별 기록</h2>${histHTML()}</div>`;
  $('#addStat').onclick=()=>editStat();
