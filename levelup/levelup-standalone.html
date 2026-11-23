@@ -71,7 +71,7 @@ label{font-size:12px;color:var(--mut)}.row{display:flex;gap:8px}.row>*{flex:1}
 </nav>
 <div id="toasts"></div><div id="modal" class="hidden"></div>
 <script>'use strict';
-const APP_VERSION='1.3.3';
+const APP_VERSION='1.3.4';
 const KEY='levelup-life-v1';
 const $=s=>document.querySelector(s);
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -336,11 +336,11 @@ function renderHero(){const t=totals(),L=lvl(t.total);
 function perRow(i){const s=statOf(i.stat),c=cnt(i),t=i.target||1,d=c>=t,sk=perStreak(i);const u=i.type==='weekly'?'주':'개월';
  const ctl=t>1?`<button class="chk" data-act="dec" style="width:28px;border-color:var(--mut)">−</button><b style="min-width:34px;text-align:center">${c}/${t}</b><button class="chk" data-act="inc" ${d?'disabled':''}>${d?'✓':'+1'}</button>`:`<button class="chk" data-act="chk">${d?'✓':''}</button>`;
  return `<div class="item ${d?'done':''}" data-id="${i.id}">${t>1?'':ctl}<div class="t"><div>${esc(i.title)}</div><div><span class="tag">${s.icon} ${esc(s.name)}</span><span class="mut">+${i.xp}XP</span> ${sk?`<span class="streak">🔥${sk}${u} 연속</span>`:''}</div>${t>1?`<div class="bar" style="height:5px"><i style="width:${c/t*100}%"></i></div>`:''}</div>${t>1?ctl:''}<button class="x" data-act="edit">✎</button></div>`}
-let todayMode='habit';
+let todayMode='habit';let agEvMore=false;
 const dday=d=>Math.round((new Date(d+'T12:00:00')-new Date(today()+'T12:00:00'))/864e5);
 const ddl=n=>n===0?'D-DAY':n>0?'D-'+n:'D+'+(-n);
 const ddc=n=>n<=7?'d7':n<=30?'d30':'';
-function upcoming(){return S.events.filter(e=>!e.done).sort((a,b)=>a.date.localeCompare(b.date))}
+function upcoming(){return (S.events||[]).filter(e=>e&&!e.done&&e.date).sort((a,b)=>String(a.date).localeCompare(String(b.date)))}
 function evRow(e){const n=dday(e.date),s=statOf(e.stat);return `<div class="item ev ${e.done?'done':ddc(n)}" data-ev="${e.id}"><button class="chk" data-act="evchk">${e.done?'✓':''}</button><div class="t"><div>${esc(e.title)}</div><div class="mut">${e.date.replace(/-/g,'.')} · <span class="tag">${s.icon} ${esc(s.name)}</span>+${e.xp}XP</div>${e.memo?`<div class="mut">📝 ${esc(e.memo)}</div>`:''}</div><b class="dd">${e.done?'완료':ddl(n)}</b><button class="x" data-act="evedit">✎</button></div>`}
 function toggleEv(id,el){const e=S.events.find(x=>x.id===id);const before=totals();
  if(e.done){for(const k in S.log){const c=S.log[k].checks,ix=c.findIndex(x=>x.id===id);if(ix>=0){c.splice(ix,1);break}}e.done=null}
@@ -364,17 +364,18 @@ function agendaIv(i){const d=i.lastDone===today(),n=dday(i.due),st=d?'✓ 완료
 function agendaPer(i){const c=cnt(i),t=i.target||1,inf=perInfo(i.type),ctl=t>1?`<button class="chk" data-act="inc">+1</button>`:`<button class="chk" data-act="chk"></button>`;
  return `<div class="item" data-id="${i.id}" style="padding:6px 0">${ctl}<div class="t"><div>${reqTag(i)}${esc(i.title)} <span class="mut">진행 ${c}/${t} · ${i.type==='weekly'?'이번 주':'이번 달'} ${inf.left}일 남음</span></div></div></div>`}
 function agendaTodo(i){const d=!!i.done;return `<div class="item ${d?'done':''}" data-id="${i.id}" style="padding:6px 0"><button class="chk" data-act="chk">${d?'✓':''}</button><div class="t"><div>${reqTag(i)}${esc(i.title)} <span style="${d?'':'color:var(--gold);font-weight:700'}">${d?'✓ 완료':'오늘!'}</span></div></div></div>`}
-function agendaEv(e){const n=dday(e.date),st=n===0?'오늘!':n<0?(-n)+'일 지남':ddl(n);
- return `<div class="item ev ${e.done?'done':ddc(n)}" data-ev="${e.id}" style="padding:6px 0"><button class="chk" data-act="evchk">${e.done?'✓':''}</button><div class="t"><div>${esc(e.title)}</div></div><b class="dd">${st}</b></div>`}
+function agendaEv(e){const n=dday(e.date),st=n===0?'오늘!':n<0?(-n)+'일 지남':ddl(n),when=/^\d{4}-\d\d-\d\d$/.test(e.date||'')?shortDay(e.date):esc(e.date||'');
+ return `<div class="item ev ${e.done?'done':ddc(n)}" data-ev="${e.id}" style="padding:6px 0"><button class="chk" data-act="evchk">${e.done?'✓':''}</button><div class="t"><div>${when} ${esc(e.title)} <span class="mut">· ${st}</span></div></div></div>`}
 function agendaHTML(){const k=today();
  const rec=[...S.items.filter(ivDue).sort((a,b)=>a.due.localeCompare(b.due)),...S.items.filter(i=>isPer(i)&&!perDone(i)),...S.items.filter(i=>i.type==='todo'&&(!i.done||i.done===k)&&(i.date||i.due)===k)];
  const soon=S.items.filter(i=>i.type==='interval'&&!ivDue(i)&&i.due&&dday(i.due)>=1&&dday(i.due)<=7).sort((a,b)=>a.due.localeCompare(b.due));
- const up=upcoming(),evNow=up.filter(e=>dday(e.date)<=0),evSoon=up.filter(e=>dday(e.date)>0).slice(0,3),evs=[...evNow,...evSoon];
+ const evs=upcoming();
  if(!rec.length&&!soon.length&&!evs.length)return `<div class="card" id="agenda" style="padding:10px 14px"><h2>📋 오늘의 일정</h2><div class="empty" style="padding:4px 0">오늘은 반복·중요 일정이 없어요</div></div>`;
  let h=`<div class="card" id="agenda" style="padding:10px 14px"><h2>📋 오늘의 일정</h2>`;
  if(rec.length){h+=`<div class="mut" style="margin:4px 0 6px">🔁 오늘 반복 일정</div>`+rec.map(i=>i.type==='interval'?agendaIv(i):isPer(i)?agendaPer(i):agendaTodo(i)).join('')}
  if(soon.length){h+=`<div class="mut" style="margin:8px 0 6px">⏭ 다가오는 반복 (7일)</div>`+soon.map(i=>`<div class="item" style="padding:6px 0"><div class="t"><div>${shortDay(i.due)} ${reqTag(i)}${esc(i.title)} <span class="mut">· ${ddl(dday(i.due))}</span></div></div></div>`).join('')}
- if(evs.length){h+=`<div class="mut" style="margin:8px 0 6px">📌 중요 일정 <button type="button" class="btn sm sec" id="agEvAll" style="margin-left:6px">전체 보기</button></div>`+evs.map(agendaEv).join('')}
+ if(evs.length){const show=agEvMore||evs.length<=8?evs:evs.slice(0,8),rest=evs.length-show.length;
+  h+=`<div class="mut" style="margin:8px 0 6px">📌 중요 일정 <button type="button" class="btn sm sec" id="agEvAll" style="margin-left:6px">전체 보기</button></div>`+show.map(agendaEv).join('')+(rest?`<button type="button" class="btn sm sec" id="agEvMore" style="width:100%;margin-top:6px">+${rest}개 더</button>`:agEvMore&&evs.length>8?`<button type="button" class="btn sm sec" id="agEvMore" style="width:100%;margin-top:6px">접기</button>`:'')}
  return h+'</div>'}
 function renderTodayQ(k){$('#qCard').onclick=()=>{qOff++;$('#qCard').outerHTML=quoteHTML(k);renderTodayQ(k)}}
 function renderToday(){const k=today(),L=S.log[k]||{memo:''};
@@ -394,7 +395,7 @@ function renderToday(){const k=today(),L=S.log[k]||{memo:''};
  <div class="card" id="evCard"><h2>📌 중요한 먼 일정 <button class="btn sm" id="addEv">＋ 추가</button></h2>${evs.map(evRow).join('')||'<div class="empty">한 달 이상 남은 중요한 일을 적어 두세요</div>'}</div>
  <button class="btn" style="width:100%;margin-bottom:12px" id="addItem">＋ 습관 / 할 일 추가</button>
  <div class="memo"><span class="mut">✏️</span><input id="memo" maxlength="80" placeholder="${fmtDay(k)} 한 줄 (선택)" value="${esc(L.memo||'')}"></div>`;
- $('#addItem').onclick=()=>editItem(null,todayMode);$('#addEv').onclick=()=>editEv();{const ag=$('#agEvAll');if(ag)ag.onclick=()=>$('#evCard').scrollIntoView({behavior:'smooth'})}
+ $('#addItem').onclick=()=>editItem(null,todayMode);$('#addEv').onclick=()=>editEv();{const ag=$('#agEvAll');if(ag)ag.onclick=()=>$('#evCard').scrollIntoView({behavior:'smooth'});const mo=$('#agEvMore');if(mo)mo.onclick=()=>{agEvMore=!agEvMore;renderToday()}}
  document.querySelectorAll('[data-tm]').forEach(b=>b.onclick=()=>{todayMode=b.dataset.tm;renderToday()});
  $('#qCard').onclick=()=>{qOff++;$('#qCard').outerHTML=quoteHTML(k);renderTodayQ(k)};
  {const bb=$('#bkBan');if(bb)bb.onclick=()=>document.querySelector('#nav [data-tab=settings]').click()}
