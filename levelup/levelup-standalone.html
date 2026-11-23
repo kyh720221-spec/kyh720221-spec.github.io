@@ -71,7 +71,7 @@ label{font-size:12px;color:var(--mut)}.row{display:flex;gap:8px}.row>*{flex:1}
 </nav>
 <div id="toasts"></div><div id="modal" class="hidden"></div>
 <script>'use strict';
-const APP_VERSION='1.3.4';
+const APP_VERSION='1.3.5';
 const KEY='levelup-life-v1';
 const $=s=>document.querySelector(s);
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -83,6 +83,7 @@ const today=()=>dkey(dayNow());
 const fmtDay=k=>{const d=new Date(k+'T12:00:00');return (d.getMonth()+1)+'월 '+d.getDate()+'일('+'일월화수목금토'[d.getDay()]+')'};
 const shortDay=k=>{const d=new Date(k+'T12:00:00');return (d.getMonth()+1)+'/'+d.getDate()+'('+'일월화수목금토'[d.getDay()]+')'};
 const addDays=(k,n)=>{const d=new Date(k+'T12:00:00');d.setDate(d.getDate()+n);return dkey(d)};
+function evDate(s){if(s==null||s==='')return '';if(s instanceof Date&&!isNaN(+s))return dkey(s);const t=String(s).trim();let m=t.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[1]+'-'+m[2]+'-'+m[3];m=t.match(/^(\d{4})[.\/](\d{1,2})[.\/](\d{1,2})/);if(m)return m[1]+'-'+pad(+m[2])+'-'+pad(+m[3]);m=t.match(/^(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})/);if(m)return m[1]+'-'+pad(+m[2])+'-'+pad(+m[3]);m=t.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})/);if(m)return m[3]+'-'+pad(+m[1])+'-'+pad(+m[2]);return ''}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 function defaults(){
@@ -97,7 +98,7 @@ let S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 if(!S||!S.stats)S=defaults();
 if(!S.meta)S.meta={lastModified:0};
 const DEF_SLOTS=()=>[{id:'am',icon:'🌅',name:'아침',s:5,e:12},{id:'pm',icon:'☀️',name:'오후',s:12,e:18},{id:'ev',icon:'🌙',name:'저녁',s:18,e:5}];
-function migrate(o){if(!o.prog)o.prog={};if(!Array.isArray(o.events))o.events=[];for(const i of o.items||[]){if(!i.type)i.type='habit';if(i.type==='interval'){i.every=Math.max(1,+i.every||1);if(!i.due)i.due=today()}if((i.type==='weekly'||i.type==='monthly')&&!(i.target>=1))i.target=1;if(i.type==='slots'&&!Array.isArray(i.slots))i.slots=[]}if(!Array.isArray(o.slotDefs)||!o.slotDefs.length)o.slotDefs=DEF_SLOTS();if(!o.v130)o.v130=today();for(const i of o.items||[]){if(i.req&&!i.reqSince)i.reqSince=today();if(i.sp&&!i.spSince)i.spSince=today();if(i.sp)delete i.req}for(const r of o.rewards||[]){if(r.src==='sp'&&r.occ&&r.date===addDays(r.occ,1))r.date=r.occ}return o}
+function migrate(o){if(!o.prog)o.prog={};if(!Array.isArray(o.events))o.events=[];for(const e of o.events){if(!e||typeof e!=='object')continue;if(!e.id)e.id=uid();const n=evDate(e.date);if(n)e.date=n;if(e.done===undefined||e.done===false||e.done==='')e.done=null}for(const i of o.items||[]){if(!i.type)i.type='habit';if(i.type==='interval'){i.every=Math.max(1,+i.every||1);if(!i.due)i.due=today()}if((i.type==='weekly'||i.type==='monthly')&&!(i.target>=1))i.target=1;if(i.type==='slots'&&!Array.isArray(i.slots))i.slots=[]}if(!Array.isArray(o.slotDefs)||!o.slotDefs.length)o.slotDefs=DEF_SLOTS();if(!o.v130)o.v130=today();for(const i of o.items||[]){if(i.req&&!i.reqSince)i.reqSince=today();if(i.sp&&!i.spSince)i.spSince=today();if(i.sp)delete i.req}for(const r of o.rewards||[]){if(r.src==='sp'&&r.occ&&r.date===addDays(r.occ,1))r.date=r.occ}return o}
 migrate(S);
 const body=o=>{const c=Object.assign({},o);delete c.meta;return JSON.stringify(c)};
 let lastBody=body(S);
@@ -337,17 +338,27 @@ function perRow(i){const s=statOf(i.stat),c=cnt(i),t=i.target||1,d=c>=t,sk=perSt
  const ctl=t>1?`<button class="chk" data-act="dec" style="width:28px;border-color:var(--mut)">−</button><b style="min-width:34px;text-align:center">${c}/${t}</b><button class="chk" data-act="inc" ${d?'disabled':''}>${d?'✓':'+1'}</button>`:`<button class="chk" data-act="chk">${d?'✓':''}</button>`;
  return `<div class="item ${d?'done':''}" data-id="${i.id}">${t>1?'':ctl}<div class="t"><div>${esc(i.title)}</div><div><span class="tag">${s.icon} ${esc(s.name)}</span><span class="mut">+${i.xp}XP</span> ${sk?`<span class="streak">🔥${sk}${u} 연속</span>`:''}</div>${t>1?`<div class="bar" style="height:5px"><i style="width:${c/t*100}%"></i></div>`:''}</div>${t>1?ctl:''}<button class="x" data-act="edit">✎</button></div>`}
 let todayMode='habit';let agEvMore=false;
-const dday=d=>Math.round((new Date(d+'T12:00:00')-new Date(today()+'T12:00:00'))/864e5);
-const ddl=n=>n===0?'D-DAY':n>0?'D-'+n:'D+'+(-n);
-const ddc=n=>n<=7?'d7':n<=30?'d30':'';
-function upcoming(){return (S.events||[]).filter(e=>e&&!e.done&&e.date).sort((a,b)=>String(a.date).localeCompare(String(b.date)))}
-function evRow(e){const n=dday(e.date),s=statOf(e.stat);return `<div class="item ev ${e.done?'done':ddc(n)}" data-ev="${e.id}"><button class="chk" data-act="evchk">${e.done?'✓':''}</button><div class="t"><div>${esc(e.title)}</div><div class="mut">${e.date.replace(/-/g,'.')} · <span class="tag">${s.icon} ${esc(s.name)}</span>+${e.xp}XP</div>${e.memo?`<div class="mut">📝 ${esc(e.memo)}</div>`:''}</div><b class="dd">${e.done?'완료':ddl(n)}</b><button class="x" data-act="evedit">✎</button></div>`}
-function toggleEv(id,el){const e=S.events.find(x=>x.id===id);const before=totals();
+function evDateOf(e){return evDate(e&&e.date)}
+const dday=d=>{const k=evDate(d);return k?Math.round((new Date(k+'T12:00:00')-new Date(today()+'T12:00:00'))/864e5):NaN};
+const ddl=n=>!isFinite(n)?'날짜 없음':n===0?'D-DAY':n>0?'D-'+n:'D+'+(-n);
+const ddc=n=>!isFinite(n)?'':n<=7?'d7':n<=30?'d30':'';
+function evWhen(e){const k=evDateOf(e);return k?shortDay(k):(e&&e.date?'날짜 없음':'날짜 없음')}
+function evDot(e){const k=evDateOf(e);return k?k.replace(/-/g,'.'):'날짜 없음'}
+function evSortUndone(a,b){const da=evDateOf(a),db=evDateOf(b);if(da&&db){const c=da.localeCompare(db);return c||String(a.title||'').localeCompare(String(b.title||''))}if(da)return -1;if(db)return 1;return String(a.title||'').localeCompare(String(b.title||''))}
+function eventList(){const all=(S.events||[]).filter(e=>e&&typeof e==='object');for(const e of all)if(!e.id)e.id=uid();
+ const undone=all.filter(e=>!e.done).sort(evSortUndone),done=all.filter(e=>e.done).sort((a,b)=>String(b.done).localeCompare(String(a.done)));
+ return {undone,done,all:[...undone,...done]}}
+function upcoming(){return eventList().undone.filter(e=>evDateOf(e))}
+function evRow(e){const n=dday(e.date),s=statOf(e.stat),st=e.done?'✅ 완료':!isFinite(n)?'날짜 없음':n===0?'오늘!':n<0?(-n)+'일 지남':ddl(n);
+ return `<div class="item ev ${e.done?'done':ddc(n)}" data-ev="${e.id}"><button class="chk" data-act="evchk">${e.done?'✓':''}</button><div class="t"><div>${esc(e.title||'(제목 없음)')}</div><div class="mut">${evDot(e)} · <span class="tag">${s.icon} ${esc(s.name)}</span>+${+e.xp||0}XP</div>${e.memo?`<div class="mut">📝 ${esc(e.memo)}</div>`:''}</div><b class="dd">${st}</b><button class="x" data-act="evedit">✎</button></div>`}
+function eventsCardHTML(id){const {undone,done,all}=eventList();
+ return `<div class="card" id="${id}"><h2>📌 중요한 먼 일정 <span class="mut">${undone.length}/${all.length}</span> <button class="btn sm" id="${id==='evCard'?'addEv':'addEv2'}">＋ 추가</button></h2>${all.map(evRow).join('')||'<div class="empty">한 달 이상 남은 중요한 일을 적어 두세요</div>'}</div>`}
+function toggleEv(id,el){const e=S.events.find(x=>x.id===id);if(!e)return;const before=totals();
  if(e.done){for(const k in S.log){const c=S.log[k].checks,ix=c.findIndex(x=>x.id===id);if(ix>=0){c.splice(ix,1);break}}e.done=null}
  else{dayLog(today()).checks.push({id,stat:e.stat,xp:e.xp,ev:1});e.done=today();floatXP(el,'+'+e.xp+' XP')}
  evaluate(before)}
 function editEv(id){const e=S.events.find(x=>x.id===id)||{title:'',date:addDays(today(),30),memo:'',stat:S.stats[0]?.id,xp:50};
- sheet(`<h2>📌 ${id?'일정 수정':'중요한 먼 일정'}</h2><label>제목</label><input id="eT" value="${esc(e.title)}" placeholder="예: 자동차 보험 갱신"><div class="row"><div><label>날짜</label><input type="date" id="eD" value="${e.date}"></div><div><label>능력치</label><select id="eS">${statOpts(e.stat)}</select></div><div style="flex:0 0 80px"><label>XP</label><input type="number" id="eX" min="0" value="${e.xp}"></div></div><label>메모 (선택)</label><input id="eM" maxlength="120" value="${esc(e.memo||'')}">${id?'<button class="btn sec" id="eDel" style="color:var(--bad)">🗑 삭제</button>':''}`,()=>{
+ sheet(`<h2>📌 ${id?'일정 수정':'중요한 먼 일정'}</h2><label>제목</label><input id="eT" value="${esc(e.title)}" placeholder="예: 자동차 보험 갱신"><div class="row"><div><label>날짜</label><input type="date" id="eD" value="${evDate(e.date)||''}"></div><div><label>능력치</label><select id="eS">${statOpts(e.stat)}</select></div><div style="flex:0 0 80px"><label>XP</label><input type="number" id="eX" min="0" value="${e.xp}"></div></div><label>메모 (선택)</label><input id="eM" maxlength="120" value="${esc(e.memo||'')}">${id?'<button class="btn sec" id="eDel" style="color:var(--bad)">🗑 삭제</button>':''}`,()=>{
   const t=$('#eT').value.trim(),d=$('#eD').value;if(!t||!d)return false;Object.assign(e,{title:t,date:d,memo:$('#eM').value.trim(),stat:$('#eS').value,xp:Math.max(0,+$('#eX').value||0)});
   if(!id){e.id=uid();e.done=null;S.events.push(e)}save();render()});
  if(id)$('#eDel').onclick=()=>{if(confirm('이 일정을 삭제할까요?')){S.events=S.events.filter(x=>x.id!==id);save();render();$('#modal').classList.add('hidden')}}}
@@ -364,8 +375,8 @@ function agendaIv(i){const d=i.lastDone===today(),n=dday(i.due),st=d?'✓ 완료
 function agendaPer(i){const c=cnt(i),t=i.target||1,inf=perInfo(i.type),ctl=t>1?`<button class="chk" data-act="inc">+1</button>`:`<button class="chk" data-act="chk"></button>`;
  return `<div class="item" data-id="${i.id}" style="padding:6px 0">${ctl}<div class="t"><div>${reqTag(i)}${esc(i.title)} <span class="mut">진행 ${c}/${t} · ${i.type==='weekly'?'이번 주':'이번 달'} ${inf.left}일 남음</span></div></div></div>`}
 function agendaTodo(i){const d=!!i.done;return `<div class="item ${d?'done':''}" data-id="${i.id}" style="padding:6px 0"><button class="chk" data-act="chk">${d?'✓':''}</button><div class="t"><div>${reqTag(i)}${esc(i.title)} <span style="${d?'':'color:var(--gold);font-weight:700'}">${d?'✓ 완료':'오늘!'}</span></div></div></div>`}
-function agendaEv(e){const n=dday(e.date),st=n===0?'오늘!':n<0?(-n)+'일 지남':ddl(n),when=/^\d{4}-\d\d-\d\d$/.test(e.date||'')?shortDay(e.date):esc(e.date||'');
- return `<div class="item ev ${e.done?'done':ddc(n)}" data-ev="${e.id}" style="padding:6px 0"><button class="chk" data-act="evchk">${e.done?'✓':''}</button><div class="t"><div>${when} ${esc(e.title)} <span class="mut">· ${st}</span></div></div></div>`}
+function agendaEv(e){const n=dday(e.date),st=e.done?'✅ 완료':!isFinite(n)?'날짜 없음':n===0?'오늘!':n<0?(-n)+'일 지남':ddl(n);
+ return `<div class="item ev ${e.done?'done':ddc(n)}" data-ev="${e.id}" style="padding:6px 0"><button class="chk" data-act="evchk">${e.done?'✓':''}</button><div class="t"><div>${evWhen(e)} ${esc(e.title||'(제목 없음)')} <span class="mut">· ${st}</span></div></div></div>`}
 function agendaHTML(){const k=today();
  const rec=[...S.items.filter(ivDue).sort((a,b)=>a.due.localeCompare(b.due)),...S.items.filter(i=>isPer(i)&&!perDone(i)),...S.items.filter(i=>i.type==='todo'&&(!i.done||i.done===k)&&(i.date||i.due)===k)];
  const soon=S.items.filter(i=>i.type==='interval'&&!ivDue(i)&&i.due&&dday(i.due)>=1&&dday(i.due)<=7).sort((a,b)=>a.due.localeCompare(b.due));
@@ -387,15 +398,14 @@ function renderToday(){const k=today(),L=S.log[k]||{memo:''};
  sec.habit[1]=[...hab,...ivD];for(const m in sec)sec[m][1]=sec[m][1].filter(i=>!i.req&&!i.sp);
  const reqL=S.items.filter(i=>i.req&&(i.type==='interval'?ivDue(i):i.type==='todo'?(!i.done||i.done===k):true));
  const [ttl,list,cn,inf]=sec[todayMode];
- const up=upcoming();
- const evs=[...up,...S.events.filter(e=>e.done).sort((a,b)=>b.done.localeCompare(a.done)).slice(0,5)];
- $('#tab-today').innerHTML=`<div class="card" style="padding:10px 14px"><b>📅 ${fmtDay(k)}</b> <span class="mut">오늘 기록 (오전 5시 기준)</span></div>${agendaHTML()}${spHTML()}${nowHTML()}${reqL.length?`<div class="card" style="border:2px solid var(--gold)"><h2>⭐ 필수 <span class="mut">${reqL.filter(i=>i.type==='slots'?!!fullRec(i.id,k):i.type==='interval'?i.lastDone===k:isPer(i)?perDone(i):i.type==='todo'?!!i.done:isChecked(i.id)).length}/${reqL.length}</span></h2><div class="mut" style="margin:-6px 0 8px">5일 연속 안 하면 감점 (정신 항목은 XP 전부, 나머지는 절반)</div>${reqL.map(itemRow).join('')}</div>`:''}${todayXPHTML()}${quoteHTML(k)}${Date.now()-lastBk()>7*864e5?`<div class="card" id="bkBan" style="padding:8px 14px;cursor:pointer;border:1px dashed var(--bad)">☁️ <b>${lastBk()?Math.floor((Date.now()-lastBk())/864e5)+'일째':'아직 한 번도'}</b> 백업을 안 했어요 · <u>설정에서 원드라이브로 백업</u></div>`:''}<div class="seg" id="tseg">${[['habit','매일'],['weekly','주간'],['monthly','월간'],['interval','반복']].map(([m,n])=>`<button class="btn ${todayMode===m?'':'sec'}" data-tm="${m}">${n} <small style="opacity:.7">${sec[m][2]}</small></button>`).join('')}</div>
+  $('#tab-today').innerHTML=`<div class="card" style="padding:10px 14px"><b>📅 ${fmtDay(k)}</b> <span class="mut">오늘 기록 (오전 5시 기준)</span><span class="mut" style="float:right">v${APP_VERSION}</span></div>${agendaHTML()}${spHTML()}${nowHTML()}${reqL.length?`<div class="card" style="border:2px solid var(--gold)"><h2>⭐ 필수 <span class="mut">${reqL.filter(i=>i.type==='slots'?!!fullRec(i.id,k):i.type==='interval'?i.lastDone===k:isPer(i)?perDone(i):i.type==='todo'?!!i.done:isChecked(i.id)).length}/${reqL.length}</span></h2><div class="mut" style="margin:-6px 0 8px">5일 연속 안 하면 감점 (정신 항목은 XP 전부, 나머지는 절반)</div>${reqL.map(itemRow).join('')}</div>`:''}${todayXPHTML()}${quoteHTML(k)}${Date.now()-lastBk()>7*864e5?`<div class="card" id="bkBan" style="padding:8px 14px;cursor:pointer;border:1px dashed var(--bad)">☁️ <b>${lastBk()?Math.floor((Date.now()-lastBk())/864e5)+'일째':'아직 한 번도'}</b> 백업을 안 했어요 · <u>설정에서 원드라이브로 백업</u></div>`:''}<div class="seg" id="tseg">${[['habit','매일'],['weekly','주간'],['monthly','월간'],['interval','반복']].map(([m,n])=>`<button class="btn ${todayMode===m?'':'sec'}" data-tm="${m}">${n} <small style="opacity:.7">${sec[m][2]}</small></button>`).join('')}</div>
  <div class="card"><h2>${ttl} <span class="mut">${cn}</span></h2>${inf?`<div class="mut" style="margin:-6px 0 8px">${inf.left===null?inf.label:`${inf.label} · ${inf.left}일 남음 · 새 ${todayMode==='weekly'?'주(월요일)':'달'}에 자동 초기화`}</div>`:''}${list.map(itemRow).join('')||'<div class="empty">항목을 추가해 보세요</div>'}</div>
+ ${todayMode==='interval'?eventsCardHTML('evTabCard'):''}
  <div class="card"><h2>📜 할 일</h2>${todo.map(itemRow).join('')||'<div class="empty">할 일이 없어요</div>'}</div>
- <div class="card" id="evCard"><h2>📌 중요한 먼 일정 <button class="btn sm" id="addEv">＋ 추가</button></h2>${evs.map(evRow).join('')||'<div class="empty">한 달 이상 남은 중요한 일을 적어 두세요</div>'}</div>
+ ${eventsCardHTML('evCard')}
  <button class="btn" style="width:100%;margin-bottom:12px" id="addItem">＋ 습관 / 할 일 추가</button>
  <div class="memo"><span class="mut">✏️</span><input id="memo" maxlength="80" placeholder="${fmtDay(k)} 한 줄 (선택)" value="${esc(L.memo||'')}"></div>`;
- $('#addItem').onclick=()=>editItem(null,todayMode);$('#addEv').onclick=()=>editEv();{const ag=$('#agEvAll');if(ag)ag.onclick=()=>$('#evCard').scrollIntoView({behavior:'smooth'});const mo=$('#agEvMore');if(mo)mo.onclick=()=>{agEvMore=!agEvMore;renderToday()}}
+ $('#addItem').onclick=()=>editItem(null,todayMode);['addEv','addEv2'].forEach(id=>{const b=document.getElementById(id);if(b)b.onclick=()=>editEv()});{const ag=$('#agEvAll');if(ag)ag.onclick=()=>$('#evCard').scrollIntoView({behavior:'smooth'});const mo=$('#agEvMore');if(mo)mo.onclick=()=>{agEvMore=!agEvMore;renderToday()}}
  document.querySelectorAll('[data-tm]').forEach(b=>b.onclick=()=>{todayMode=b.dataset.tm;renderToday()});
  $('#qCard').onclick=()=>{qOff++;$('#qCard').outerHTML=quoteHTML(k);renderTodayQ(k)};
  {const bb=$('#bkBan');if(bb)bb.onclick=()=>document.querySelector('#nav [data-tab=settings]').click()}
@@ -504,9 +514,12 @@ render();save();
 window.LUSync&&LUSync.start();
 let slotSig='';const sigNow=()=>today()+'|'+(S.slotDefs||[]).map(d=>slotState(d)).join('');slotSig=sigNow();setInterval(()=>{const g=sigNow();if(g!==slotSig){slotSig=g;if($('#modal').classList.contains('hidden'))render()}},30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden){const g=sigNow();if(g!==slotSig){slotSig=g;render()}}});
 if('serviceWorker'in navigator&&location.protocol.startsWith('http')){
- const had=!!navigator.serviceWorker.controller;
- navigator.serviceWorker.register('sw.js').then(r=>r.update().catch(()=>{})).catch(()=>{});
- navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!had)return;const t=document.createElement('div');t.className='toast upd';t.id='updToast';t.textContent='✨ 새 버전이 있어요 · 눌러서 새로고침';t.onclick=()=>location.reload();$('#toasts').appendChild(t)});
+ const had=!!navigator.serviceWorker.controller;let reloading=false;
+ const ping=()=>navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{});
+ navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update().catch(()=>{});if(r.waiting&&had)r.waiting.postMessage('skip')}).catch(()=>{});
+ navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!had||reloading)return;reloading=true;const t=document.createElement('div');t.className='toast upd';t.id='updToast';t.textContent='✨ 새 버전이 있어요 · 새로고침합니다';$('#toasts').appendChild(t);setTimeout(()=>location.reload(),200)});
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)ping()});
+ window.addEventListener('focus',ping);
 }
 </script>
 </body></html>
